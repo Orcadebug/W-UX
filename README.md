@@ -58,7 +58,6 @@ A comprehensive observability system that ingests browser sessions (DOM, events,
 
 ```bash
 # Start PostgreSQL + Redis
-cd /Users/saipittala/Documents/Try_it_out/W-UX
 pnpm docker:up
 
 # Run database migrations
