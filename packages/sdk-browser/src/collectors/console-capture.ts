@@ -10,16 +10,17 @@ export class ConsoleCapture {
 
   start() {
     for (const level of ['log', 'warn', 'error', 'info', 'debug']) {
-      this.originalMethods[level] = console[level]
+      this.originalMethods[level] = console[level as keyof Console] as Function
+      const original = this.originalMethods[level]
       const onEvent = this.onEvent
-      console[level] = function(...args: unknown[]) {
+      ;(console[level as keyof Console] as any) = function(...args: unknown[]) {
         onEvent({
           ts: Date.now(),
           modality: 'console',
           subtype: level,
           payload: { args: args.map((a) => String(a).slice(0, 500)) },
         })
-        return (this as any).__original.apply(this, args)
+        return original.apply(console, args)
       }
     }
   }

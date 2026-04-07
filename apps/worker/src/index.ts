@@ -29,14 +29,16 @@ const detectIssuesWorker = new Worker(
     console.log(`Detecting issues for session: ${sessionId}`)
     
     const pipeline = new DetectionPipeline()
-    const { rows: [timelineRow] } = await db.query('SELECT timeline FROM session_timelines WHERE session_id = $1', [sessionId])
-    
+    const [{ rows: [timelineRow] }, { rows: eventRows }] = await Promise.all([
+      db.query('SELECT timeline FROM session_timelines WHERE session_id = $1', [sessionId]),
+      db.query('SELECT * FROM timeline_events WHERE session_id = $1', [sessionId]),
+    ])
+
     if (!timelineRow) {
       throw new Error(`Timeline not found for session ${sessionId}`)
     }
-    
+
     const timeline = JSON.parse(timelineRow.timeline)
-    const { rows: eventRows } = await db.query('SELECT * FROM timeline_events WHERE session_id = $1', [sessionId])
     const events = eventRows.map(row => ({
       ...row,
       payload: row.payload,
@@ -47,8 +49,8 @@ const detectIssuesWorker = new Worker(
     const results = await pipeline.run(ctx)
     const hypotheses = pipeline.toHypotheses(results, sessionId)
     
-    for (const hypothesis of hypotheses) {
-      await db.query(
+    await Promise.all(hypotheses.map((hypothesis) =>
+      db.query(
         `INSERT INTO hypotheses (id, session_id, title, description, category, confidence, evidence_ids, suspected_files, suspected_components, metadata, verifier_status, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
@@ -66,7 +68,7 @@ const detectIssuesWorker = new Worker(
           hypothesis.createdAt,
         ]
       )
-    }
+    ))
     
     return { sessionId, status: 'detected', hypothesisCount: hypotheses.length }
   },

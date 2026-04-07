@@ -41,8 +41,7 @@ export default function SessionDetailPage() {
 
   useEffect(() => {
     if (sessionId) {
-      fetchSession()
-      fetchIssues()
+      Promise.all([fetchSession(), fetchIssues()])
     }
   }, [sessionId])
 

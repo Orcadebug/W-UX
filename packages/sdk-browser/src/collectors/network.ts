@@ -19,17 +19,24 @@ export class NetworkCollector {
     if (this.originalFetch) {
       window.fetch = this.originalFetch
     }
+    if (this.originalXHROpen) {
+      XMLHttpRequest.prototype.open = this.originalXHROpen as any
+    }
+    if (this.originalXHRSend) {
+      XMLHttpRequest.prototype.send = this.originalXHRSend as any
+    }
   }
 
   private patchFetch() {
-    this.originalFetch = window.fetch
+    const originalFetch = window.fetch
+    this.originalFetch = originalFetch
     const onEvent = this.onEvent
     window.fetch = async function patchedFetch(input: RequestInfo | URL, init?: RequestInit) {
       const startTs = Date.now()
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
       const method = init?.method || 'GET'
       try {
-        const response = await (onEvent as any).__originalFetch.call(this, input, init)
+        const response = await originalFetch.call(window, input, init)
         const duration = Date.now() - startTs
         onEvent({
           ts: startTs,
@@ -49,7 +56,6 @@ export class NetworkCollector {
         throw error
       }
     } as typeof fetch
-    ;(window.fetch as any).__originalFetch = this.originalFetch
   }
 
   private patchXHR() {

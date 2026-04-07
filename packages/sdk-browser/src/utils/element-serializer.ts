@@ -28,32 +28,31 @@ export function computeCSSBlockers(el: HTMLElement): CSSBlockerState {
 }
 
 function findOverlappingElements(target: HTMLElement, targetRect: DOMRect): Array<{ tag: string; className: string; zIndex?: number; boundingRect?: DOMRect }> {
-  const style = window.getComputedStyle(target)
-  const targetZ = style.zIndex !== 'auto' ? parseInt(style.zIndex, 10) : 0
+  const targetStyle = window.getComputedStyle(target)
+  const targetZ = targetStyle.zIndex !== 'auto' ? parseInt(targetStyle.zIndex, 10) : 0
 
-  const allElements = document.querySelectorAll('*')
-  const overlapping: Array<{ tag: string; className: string; zIndex?: number; boundingRect?: DOMRect }> = []
+  const cx = targetRect.left + targetRect.width / 2
+  const cy = targetRect.top + targetRect.height / 2
+  const candidates = document.elementsFromPoint(cx, cy)
 
-  for (const el of Array.from(allElements)) {
-    if (el === target || !el.parentElement) continue
-    const htmlEl = el as HTMLElement
-    const rect = htmlEl.getBoundingClientRect()
-    const elStyle = window.getComputedStyle(htmlEl)
-
-    if (elStyle.pointerEvents === 'none' || elStyle.display === 'none' || elStyle.visibility === 'hidden') continue
-
-    const elZ = elStyle.zIndex !== 'auto' ? parseInt(elStyle.zIndex, 10) : 0
-    if (elZ <= targetZ) continue
-
-    const hasOverlap = !(rect.right < targetRect.left || rect.left > targetRect.right || rect.bottom < targetRect.top || rect.top > targetRect.bottom)
-    if (hasOverlap) {
-      overlapping.push({
+  return candidates
+    .filter((el) => {
+      if (el === target || !el.parentElement) return false
+      const htmlEl = el as HTMLElement
+      const elStyle = window.getComputedStyle(htmlEl)
+      if (elStyle.pointerEvents === 'none' || elStyle.display === 'none' || elStyle.visibility === 'hidden') return false
+      const elZ = elStyle.zIndex !== 'auto' ? parseInt(elStyle.zIndex, 10) : 0
+      return elZ > targetZ
+    })
+    .map((el) => {
+      const htmlEl = el as HTMLElement
+      const elStyle = window.getComputedStyle(htmlEl)
+      const elZ = elStyle.zIndex !== 'auto' ? parseInt(elStyle.zIndex, 10) : 0
+      return {
         tag: htmlEl.tagName.toLowerCase(),
         className: htmlEl.className && typeof htmlEl.className === 'string' ? htmlEl.className : '',
         zIndex: elZ || undefined,
-        boundingRect: rect,
-      })
-    }
-  }
-  return overlapping
+        boundingRect: htmlEl.getBoundingClientRect(),
+      }
+    })
 }
